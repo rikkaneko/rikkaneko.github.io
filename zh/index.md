@@ -2,7 +2,7 @@
 <br/>
 
 #### 文章
-[*Install FAR Mod and HD Texture Pack for NieR: Automata on Linux*](/articles/nier_mod.md) *(2021年6月21日) __[en]__*  
+[*Install FAR Mod and HD Texture Pack for NieR: Automata on Linux*](../articles/nier_mod.md) *(2021年6月21日) __[en]__*  
 <br/>
 
 #### 我是誰？
