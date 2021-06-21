@@ -2,7 +2,7 @@
 <br/>
 
 #### 文章
-[*Install FAR Mod and HD Texture Pack for NieR: Automata on Linux*](/articles/nier_mod.md) *(2021年6月21日) -- 只有英文版 --*  
+[*Install FAR Mod and HD Texture Pack for NieR: Automata on Linux*](/articles/nier_mod.md) *(2021年6月21日) __[en]__*  
 <br/>
 
 #### 我是誰？
@@ -20,6 +20,6 @@ E-Mail: [rikkaneko23@gmail.com](mailto:rikkaneko23@gmail.com)
 GPG 指紋: [7785 7DC6 BBB6 429C 8BE2 09F5 D68E 0BFE 4115 B78C](https://keys.openpgp.org/vks/v1/by-fingerprint/77857DC6BBB6429C8BE209F5D68E0BFE4115B78C)  
 <br/>
 
-*最近更新在 2021年6月21日*  
+*最近更新在 2021年6月22日*  
 &#91;中文版&#93; [&#91;en&#93;](/)
 
