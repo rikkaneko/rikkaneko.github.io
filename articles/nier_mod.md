@@ -35,24 +35,24 @@ FAR Mod required Both x86 and x64 edition of Visual C++ 2017 Redistributable.
 As I tested, the `vcrun2017` verb in winetricks are currently broken. You may manually install the VC2017 by using the vc_redist.\<arch\>.exe from Microsoft.  
 - x86: [vc_redist.x86.exe](https://aka.ms/vs/16/release/vc_redist.x86.exe)  
 - x64: [vc_redist.x64.xe](https://aka.ms/vs/16/release/vc_redist.x64.exe)  
-Run this command to start the shell
+1. Run this command to start the shell
 ```bash
 protontricks 524220 shell
 ```
-In the shell, run the following commands and follow the instruction of the install wizard.
+2. In the shell, run the following commands and follow the instruction of the install wizard.
 ```bash
 wine ~/Downloads/vc_redist.x86.exe # Use your Download location
 wine ~/Downloads/vc_redist.x64.exe # Use your Download location
 ```
-Then, exit the shell. Then install the `dinput8` verb by,
+3. Exit the shell. Then install the `dinput8` verb by,
 ```bash
 protontricks 524220 dinput8
 ```
-Once install, run this command to open `winecfg`,
+4. Once install, run this command to open `winecfg`,
 ```bash
 protontricks 524220 winecfg
 ```
-Proceed to the `Libraries` tab, add a new override for library named `dinput8` with `native, builtin` setting.
+5. Proceed to the `Libraries` tab, add a new override for library named `dinput8` with `native, builtin` setting.
 
 ### Install the FAR Mod
 The installation of the mod is straightforward.  
@@ -62,7 +62,7 @@ You should see `NieRAutomata.exe` in the root of the game directory.
 3. You may press `Ctrl+Shift+Backspace` to open the in-game GUI.  
 Two file `dinput8.ini` and `FAR.ini` should be generated in the game directory.
 __Note:__ These files are encoded in UTF-16. If you are using Kate editor, you may see whole page of block and random characters, just set back the correct encoding is fine.  
-According to [MiyacoGBF](https://gist.github.com/MiyacoGBF/6fd49ae4a73a9a7f4d13c488bff2da77), open `dinput8.ini`  and change `Silent=false` in `Steam.Log` section to `Silent=false` maybe a workaround for fixing GUI crash. However, I cannot show the OSD without crash while the GUI work fine without special configuration.  
+__Note:__ According to [MiyacoGBF](https://gist.github.com/MiyacoGBF/6fd49ae4a73a9a7f4d13c488bff2da77), open `dinput8.ini`  and change `Silent=false` in `Steam.Log` section to `Silent=false` maybe a workaround for fixing GUI crash. However, I cannot show the OSD without crash while the GUI work fine without special configuration.  
 
 __Warning:__  Don't enable the OSD or press `Ctrl+Shift+O` in game as it will crash your game.
 
@@ -76,7 +76,7 @@ The game directory should now have a new subdirectory `FAR_Res`
 3. Open `dinput8.ini` and change `Inject=false` in `Textures.D3D11` section to `Inject=true` to enable the texture.
 
 ### Reference
-[Tweaks & FAR](https://steamcommunity.com/groups/SpecialK_Mods/discussions/3/1334600128973500691/)
+[Tweaks & FAR](https://steamcommunity.com/groups/SpecialK_Mods/discussions/3/1334600128973500691/)  
 [How to Install FAR, HD Texture Pack, and ReShade (GShade) for NieR:Automata on Linux](https://gist.github.com/MiyacoGBF/6fd49ae4a73a9a7f4d13c488bff2da77)  
 <br/>
 
