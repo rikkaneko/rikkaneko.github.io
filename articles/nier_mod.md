@@ -86,7 +86,7 @@ If you find accidently enable the OSD and the game keep crashing at statup, you 
 
 ### Setting FAR Mod
 Here is my configuration  
-|||
+|Setting|Value|
 |------|-----|
 |Global Illumination|Low|
 |Bloom|Native Resolution|
