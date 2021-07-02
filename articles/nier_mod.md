@@ -85,12 +85,10 @@ The OSD configuration file is in `pfx/drive_c/users/steamuser/My Documents/My Mo
 If you find accidently enable the OSD and the game keep crashing at statup, you press open the `osd.ini` and edit `Show=true` in `SpecialK.OSD` section to `Show=false` to manualy disable the OSD.
 
 ### Setting FAR Mod
-Here is my configuration  
-|Setting|Value|
-|------|-----|
-|Global Illumination|Low|
-|Bloom|Native Resolution|
-|AO|Native Resolution|
+Here is my configuration:  
+Global Illumination: **Low**  
+Bloom: **Native Resolution**  
+Ambient Occlusion: **Native Resolution**  
 **Global Illumination** significantly degrade the graphical performance but at least **low** profile is needed.  
 
 ### Install the HD Texture Pack
