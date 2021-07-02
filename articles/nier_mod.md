@@ -10,12 +10,14 @@
 
 
 ### Prerequisite
+
 + You need ```protontricks``` package installed.  
 
 __For Arch Linux users,__
 ```bash
 pacman -S protontricks
 ```
+
 + Any recent Proton package, I would prefer [Proton-GE](https://github.com/GloriousEggroll/proton-ge-custom) by GloriousEggrol for optimal performance and game compatibilities
   I tested with the latest version of [Proton-6.10-GE-1](https://github.com/GloriousEggroll/proton-ge-custom/releases/tag/6.10-GE-1).  
    1. Download the Proton-6.10-GE-1.tar.gz (the one end with .tar.gz).  
@@ -23,7 +25,7 @@ pacman -S protontricks
    3. Extract all the content of the archive to ```compatibilitytools.d``` directory  
    ```bash
    tar xvf ~/Downloads/Proton-6.10-GE-1.tar.gz # Use your Download location
-   ```
+   ```  
    4. Once completed, restart the Steam client and configure the game to use your selected custom Proton package.  
   The detailed steps can refer to [this article](https://parasurv.neocities.org/how-to-force-linux-games-to-use-steam-proton.html) by parasurv.  
   You should be able to start the game at least once to allow Steam setup the game prefix.  
@@ -31,7 +33,7 @@ pacman -S protontricks
 As I tested, version above 0.7.0.14 is not stable and may crash at game startup.  
 You may use the [0.7.0.14](https://github.com/Kaldaien/FAR/releases/download/far_070/FAR_0_7_0_14.7z) version.  
 + Download the [HD texture Pack](https://www.nexusmods.com/nierautomata/mods/5).  
-You may pick any edition you like. However, the site requires login in order to download the files.  
+You may pick any edition you like. However, the site requires login in order to download the files. *(I use texture pack for 1080p or lower since higher resolution required more VRAM.)*
 
 ### Setup the wineprefix
 
@@ -51,7 +53,7 @@ protontricks 524220 shell
 wine ~/Downloads/vc_redist.x86.exe # Use your Download location
 wine ~/Downloads/vc_redist.x64.exe # Use your Download location
 ```
-3. Exit the shell. Then install the `dinput8` verb by,
+3. Exit the shell. Then install the `dinput8` verb by, *(If you use Proton-GE, this setup is not needed)*  
 ```bash
 protontricks 524220 dinput8
 ```
@@ -82,6 +84,15 @@ Two file `dinput8.ini` and `FAR.ini` should be generated in the game directory.
 The OSD configuration file is in `pfx/drive_c/users/steamuser/My Documents/My Mods/SpecialK/Global` in the game wineprefix, which should be in`<game directory>/../../compatdata/524220` .
 If you find accidently enable the OSD and the game keep crashing at statup, you press open the `osd.ini` and edit `Show=true` in `SpecialK.OSD` section to `Show=false` to manualy disable the OSD.
 
+### Setting FAR Mod
+Here is my configuration  
+|||
+|------|-----|
+|Global Illumination|Low|
+|Bloom|Native Resolution|
+|AO|Native Resolution|
+**Global Illumination** significantly degrade the graphical performance but at least **low** profile is needed.  
+
 ### Install the HD Texture Pack
 
 1. Open the game directory of Nier: Automata
@@ -93,7 +104,8 @@ The game directory should now have a new subdirectory `FAR_Res`
 
 [Tweaks & FAR](https://steamcommunity.com/groups/SpecialK_Mods/discussions/3/1334600128973500691/)  
 [How to Install FAR, HD Texture Pack, and ReShade (GShade) for NieR:Automata on Linux](https://gist.github.com/MiyacoGBF/6fd49ae4a73a9a7f4d13c488bff2da77)  
+[FAR Mod](https://github.com/Kaldaien/FAR)
 <br/>
 
-*Last updated on 23 June, 2021*
+*Last updated on 2 July, 2021*
 [&#91;Back to main page&#93;](/)
