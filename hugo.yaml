@@ -1,0 +1,79 @@
+baseURL: https://blog.nekoid.cc
+title: "@rikkaneko's Blog"
+paginate: 5
+theme: ["PaperMod"]
+copyright: "© 2026 Joe"
+
+minify:
+  disableXML: true
+  minifyOutput: true
+
+params:
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: true
+  ShowWordCount: true
+  ShowRssButtonInSectionTermList: false
+  UseHugoToc: true
+  disableSpecial1stPost: false
+  disableScrollToTop: false
+  comments: false
+  hidemeta: false
+  hideSummary: false
+  showtoc: false
+  tocopen: false
+  homeInfoParams:
+    Title: Welcome to my own space! 👋
+    Content: I hope one day all mankind will stop fighting against each others, and start working together to explore the vast universe.
+  socialIcons:
+  - name: email
+    url: rikkaneko23@gmail.com
+  - name: github
+    url: "https://github.com/rikkaneko"
+  - name: telegram
+    url: "https://t.me/nekonull_ptr"
+  author: ["Me"]
+  assets:
+    favicon: "https://files.nekoid.cc/pub/icon/128x128/Cat_Full_V2_Shape_128x128.png"
+
+menu:
+  main:
+    - identifier: about-me
+      name: About
+      pageRef: /post/about-me
+      weight: 10
+    - identifier: contact
+      name: Contact
+      pageRef: /post/contact-me
+      weight: 11
+    - identifier: project
+      name: Project
+      pageRef: /post/my-project
+      weight: 20
+    - identifier: post
+      name: Post
+      pageRef: /post
+      weight: 30
+    - identifier: paste
+      name: Paste
+      url: https://pb.nekoid.cc
+      weight: 100
+    - identifier: yue2pinyin
+      name: Yue2Pinyin
+      url: https://yue2pinyin.nekoid.cc
+      weight: 110
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+
+caches:
+  images:
+    dir: :cacheDir/images
+
+module:
+  imports:
+    - path: "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
