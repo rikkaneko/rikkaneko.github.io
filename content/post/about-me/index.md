@@ -12,13 +12,13 @@ title: 'About Me'
 ![image](My_Cat_1.jpg)
 *They are called **迅猛龍** (Raptor) and **霸王龍** (T-rex) from left to right.*
 
-In weekend, we often go hiking ⛰️ and visit the beaches 🏖️ when the weather is good. People completely underestimate Hong Kong as a great place to hike. In reality, most of the territory is covered in lush greenery, and it is home to *25 country parks*. Like many of you, I love playing PC games, especially story-driven RPG and FPS, also a big fan of Japanese ACG Culture. Now, I am able to read original Japanese comics, anime and light novels (*still very slow*) without translation. However, I definitely need more practice to read Japanese fluently. Recently, I've been learning Spanish 🇪🇸 so that I can connect with the other half of the world!
+We are both like outdoor activities. In weekend, we often go hiking ⛰️ and visit the beaches 🏖️ when the weather is good. People completely underestimate Hong Kong as a great place to hike. In reality, most of the territory is covered in lush greenery, and it is home to *25 country parks and hiking trails of nearly 500km (approx. 310 miles)*. Like many of you, I love playing PC games, especially story-driven RPG and FPS, also a big fan of Japanese ACG Culture. Now, I am able to read original Japanese comics, anime and light novels (*still very slow*) without translation. However, I definitely need more practice to read Japanese fluently. Recently, I've been learning Spanish 🇪🇸 so that I can connect with the other half of the world!
 
 > **Even if we don't share the same hobbies, I'm always happy to connect with fun people from all over the globe. You can find me [here](../contact-me) 😃.** 
 
 Here are the best story-driven RPG I have ever played and always recommended to everyone:
 
-- The Witcher 2 & 3 (Next Gen, Remastered not yet played) ⭐⭐⭐
+- The Witcher 2 & 3 (Next Gen) ⭐⭐⭐
 - Portal 1 & 2 ⭐⭐⭐
 - Portal Stories: Mel ⭐⭐⭐
 - NieR: Automata
@@ -30,9 +30,9 @@ Here are the best story-driven RPG I have ever played and always recommended to 
 
 ## Long story of my journey with Linux
 
-I am proud to be an member of the [Arch Linux](https://archlinux.org/) and [KDE](https://kde.org/) communities. I feel like I have always had strong interest in technical stuff since I was a kid, like wanna to know about how things actually works, whether if I can do things differently when the underlying principle is the same, etc. These thoughts often spend me quite a lot of time to do research and experiments, but I would say it is **worth** for most of the time. 
+<span style="font-size: 28px">***btw I use Arch!***</span> I am proud to be an member of the [Arch Linux](https://archlinux.org/) and [KDE](https://kde.org/) communities. I feel like I have always had strong interest in technical stuff since I was a kid, like wanna to know about how things actually works, whether if I can do things differently when the underlying principle is the same, etc. These thoughts often spend me quite a lot of time to do research and experiments, but I would say it is **worth** for most of the time. 
 
-I met Linux for the first time when I was in P5 (primary year 5, or called 5th grade in US). At that time, I was impressed by the UI design of Chrome OS, which had a semi-transparent windows and a file browser integrated with Google Drive natively. Meanwhile, the old home laptop with an Intel Atom CPU and [MS Windows XP](https://en.wikipedia.org/wiki/Windows_XP) installed was all I had. Therefore, I was finding way to replace the existing laptop OS with Chrome OS.  
+I met Linux for the first time when I was in P5 (primary year 5, or called 5th grade). At that time, I was impressed by the UI design of Chrome OS, which had a semi-transparent windows and a file browser integrated with Google Drive natively. Meanwhile, the old home laptop with an Intel Atom CPU and [MS Windows XP](https://en.wikipedia.org/wiki/Windows_XP) installed was all I had. Therefore, I was finding way to replace the existing laptop OS with Chrome OS.  
 
 That was lucky that there were a school TA who taught me to install [Chromium OS](https://www.chromium.org/chromium-os/developer-library/getting-started/) (Unofficial build as that time) to a USB stick, then boot with USB in one of the school computers. I will never forget the feeling I had at that moment when I saw [Tux](https://en.wikipedia.org/wiki/Tux_(mascot)) at the top of the screen with flickered boot log, followed by the Chromium OS setup wizard and the desktop, appeared in the school computer and my home laptop.  
 As a fun fact, I reinstalled the OS three times just because I tried to log in to the tty as root, but no characters displayed when typing the password. I thought the OS was somehow broken, but it turned out to be expected behavior.

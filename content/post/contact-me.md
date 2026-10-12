@@ -4,10 +4,10 @@ draft: false
 lang: en
 title: 'Contact'
 ---
+
 |Contact||
 |-|-|
 |E-Mail ✉️|<a href="mailto:rikkaneko23%40gmail.com?subject=Hello">rikkaneko23@gmail.com</a>|
-|Github|[@rikkaneko](https://github.com/rikkaneko)|
 |Telegram|[@nekonull_ptr](https://t.me/nekonull_ptr)|
 
 You can encrypt the message or verify my message using the GPG Key from [keys.openpgp.org](https://keys.openpgp.org/vks/v1/by-fingerprint/77857DC6BBB6429C8BE209F5D68E0BFE4115B78C), [pgp.mit.edu](https://pgp.mit.edu/pks/lookup?op=vindex&search=0xD68E0BFE4115B78C) or [here](https://files.nekoid.cc/pub/public.asc), via [gnupg](https://www.gnupg.org/) or any other compatible tools. It is welcome to provide yours as well!

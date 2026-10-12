@@ -12,8 +12,8 @@ Welcome to submit PR to my repo if you find anything useful.
 
 [[Repo]](https://github.com/rikkaneko/paste) [[Live]](https://pb.nekoid.cc)
 
-A paste service using Cloudflare Workers.
-Upload/view paste via `curl` command or [paste-cli](https://raw.githubusercontent.com/rikkaneko/paste/refs/heads/main/client/paste-cli) in console environment.
+A paste service using [Cloudflare Workers](https://developers.cloudflare.com/workers/) for instant file sharing.
+Upload/view paste via built-in `curl` command or [paste-cli](https://raw.githubusercontent.com/rikkaneko/paste/refs/heads/main/client/paste-cli) client in console environment, and webpage.
 
 ## yue2pinyin
 
@@ -26,14 +26,14 @@ Design to help new Cantonese learner from mainland China.
 
 [[Repo]](https://github.com/rikkaneko/sloth)
 
-Cloud backup tool for containerized and local services, built as a standalone Go CLI.  
-Primarily backup to s3-compatible object storage bucket.
+Cloud backup tool for containerized and local services, built as a standalone Go CLI. Support backup of popular Relational Databases, Directus schema snapshot, RabbitMQ definition and Docker/Podman volume backup to S3-compatible object storage bucket.
 
 ## rabbitmq-action
 
 [[Repo]](https://github.com/rikkaneko/rabbitmq-action)
 
-GitHub Action for publishing payloads to RabbitMQ or AMQP exchanges.
+GitHub Action for publishing payloads to RabbitMQ or AMQP exchanges.  
+Work together with [rabbitmq-action-agent](https://github.com/rikkaneko/rabbitmq-action-agent).
 
 ## rabbitmq-action-agent
 
@@ -46,13 +46,13 @@ Work together with [RabbitMQ Publish Action](https://github.com/marketplace/acti
 
 [[Repo]](https://github.com/rikkaneko/pdf2md-pipeline)
 
-Python pipeline for converting an unorganized PDF into organized, reviewable Markdown documents.
+Python pipeline for converting an unorganized PDF into organized, reviewable Markdown documents, using LLM.
 
 ## cert-tool
 
 [[Repo]](https://github.com/rikkaneko/cert-tool)
 
-A single bash script for managing internal PKI (Public Key Infrastructure) and self-signing certificates.
+A single bash script for managing internal X.509 PKI (Public Key Infrastructure) and self-signing certificates.
 
 ## [useful-script](https://github.com/rikkaneko/useful-script)
 

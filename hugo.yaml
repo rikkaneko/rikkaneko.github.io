@@ -3,12 +3,69 @@ title: "@rikkaneko's Blog"
 paginate: 5
 theme: ["PaperMod"]
 copyright: "© 2026 Joe"
+defaultContentLanguage: en
+defaultContentLanguageInSubdir: false
+disableDefaultLanguageRedirect: false
+
+languages:
+  en:
+    label: English
+    weight: 1
+    menu:
+      main:
+      - identifier: about-me
+        name: About
+        pageRef: /post/about-me
+        weight: 10
+      - identifier: contact
+        name: Contact
+        pageRef: /post/contact-me
+        weight: 11
+      - identifier: project
+        name: Project
+        pageRef: /post/my-project
+        weight: 20
+      - identifier: post
+        name: Post
+        pageRef: /post
+        weight: 30
+      - identifier: paste
+        name: Paste
+        url: https://pb.nekoid.cc
+        weight: 100
+  zh:
+    label: "中文"
+    locale: zh-TW
+    weight: 2
+    menu:
+      main:
+        - identifier: about-me
+          name: "關於我"
+          pageRef: /post/about-me
+          weight: 10
+        - identifier: contact
+          name: "聯絡我"
+          pageRef: /post/contact-me
+          weight: 11
+        - identifier: project
+          name: "我的項目"
+          pageRef: /post/my-project
+          weight: 20
+        - identifier: post
+          name: "文章"
+          pageRef: /post
+          weight: 30
+        - identifier: paste
+          name: Paste
+          url: https://pb.nekoid.cc
+          weight: 100
 
 minify:
   disableXML: true
   minifyOutput: true
 
 params:
+  displayFullLangName: true
   ShowReadingTime: true
   ShowShareButtons: false
   ShowPostNavLinks: true
@@ -37,33 +94,6 @@ params:
   author: ["Me"]
   assets:
     favicon: "https://files.nekoid.cc/pub/icon/128x128/Cat_Full_V2_Shape_128x128.png"
-
-menu:
-  main:
-    - identifier: about-me
-      name: About
-      pageRef: /post/about-me
-      weight: 10
-    - identifier: contact
-      name: Contact
-      pageRef: /post/contact-me
-      weight: 11
-    - identifier: project
-      name: Project
-      pageRef: /post/my-project
-      weight: 20
-    - identifier: post
-      name: Post
-      pageRef: /post
-      weight: 30
-    - identifier: paste
-      name: Paste
-      url: https://pb.nekoid.cc
-      weight: 100
-    - identifier: yue2pinyin
-      name: Yue2Pinyin
-      url: https://yue2pinyin.nekoid.cc
-      weight: 110
 
 markup:
   goldmark:
