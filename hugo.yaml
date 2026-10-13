@@ -104,6 +104,13 @@ caches:
   images:
     dir: :cacheDir/images
 
+security:
+  funcs:
+    getenv:
+      - ^HUGO_
+      - ^CI$
+      - '^CARTO_API_KEY_LOCAL$'
+
 module:
   imports:
     - path: "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"

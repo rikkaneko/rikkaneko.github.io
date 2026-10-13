@@ -61,6 +61,7 @@ document.addEventListener("DOMContentLoaded", async function() {
   var geojsonUrls = [];
   var mapStyle = '{{ default "topo" (.Get "style") }}';
   var defaultPadding = [5, 5];
+  var cartoApiKey = {{ getenv "CARTO_API_KEY_LOCAL" |  default "cb1_4hrz_1_2463db33b111920f1b83db57" }};
 
   /* 1. HUGO BUILD-TIME DIRECTORY SCAN */
   {{ if .Get "dir" }}
@@ -153,13 +154,13 @@ document.addEventListener("DOMContentLoaded", async function() {
   /* 3. DYNAMIC BASE MAP SELECTION */
   if (mapStyle === 'minimal') {
     // Best for highlighting countries/regions with custom polygons
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_4hrz_1_2463db33b111920f1b83db57', {
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 20
     }).addTo(map);
   } else if (mapStyle === 'dark') {
     // Best for high-contrast trail visibility in dark mode
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4hrz_1_2463db33b111920f1b83db57', {
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${cartoApiKey}`, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 20
     }).addTo(map);
