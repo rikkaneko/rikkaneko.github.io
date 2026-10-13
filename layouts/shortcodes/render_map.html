@@ -1,0 +1,336 @@
+<!-- Load Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Load Turf.js for spatial calculations -->
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+<style>
+  .leaflet-container img, 
+  .leaflet-container svg, 
+  .leaflet-container path {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* 2. Apply margin: 0 to fix the polygon and tile shifting, 
+        but strictly EXEMPT the location pins so their anchors don't break */
+  .leaflet-container img:not(.leaflet-marker-icon):not(.leaflet-marker-shadow),
+  .leaflet-container svg, 
+  .leaflet-container path {
+    margin: 0 !important;
+  }
+
+  .map-location-controls {
+    display: flex;
+    background: #fff;
+  }
+
+  .map-location-controls button {
+    min-width: 36px;
+    height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-right: 1px solid #ccc;
+    background: #fff;
+    color: #222;
+    font: bold 18px Arial, sans-serif;
+    cursor: pointer;
+  }
+
+  .map-location-controls button:last-child {
+    border-right: 0;
+    font-size: 13px;
+  }
+
+  .map-location-controls button:disabled {
+    color: #888;
+    cursor: default;
+  }
+
+  .map-location-controls button:focus-visible {
+    outline: 2px solid #0056b3;
+    outline-offset: -2px;
+  }
+</style>
+
+<div id="map-{{ .Get "id" }}" style="height: {{ default "500px" (.Get "height") }}; width: 100%; border-radius: 8px;"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", async function() {
+  var mapId = 'map-{{ .Get "id" }}';
+  var geojsonUrls = [];
+  var mapStyle = '{{ default "topo" (.Get "style") }}';
+  var defaultPadding = [5, 5];
+
+  /* 1. HUGO BUILD-TIME DIRECTORY SCAN */
+  {{ if .Get "dir" }}
+    {{ $dir := strings.TrimPrefix "/" (.Get "dir") }}
+    {{ $dir = strings.TrimSuffix "/" $dir }}
+    {{ $localPath := printf "static/%s" $dir }}
+    
+    {{ if fileExists $localPath }}
+      {{ range (readDir $localPath) }}
+        {{ if strings.HasSuffix .Name ".json" }}
+          geojsonUrls.push('/{{ $dir }}/{{ .Name }}');
+        {{ end }}
+      {{ end }}
+    {{ else }}
+      console.warn("Hugo could not find the directory: {{ $localPath }}");
+    {{ end }}
+  {{ end }}
+
+  /* 2. EXPLICIT FILES */
+  {{ if .Get "src" }}
+    var rawUrls = '{{ .Get "src" }}';
+    rawUrls.split(',').forEach(url => {
+      var cleanUrl = url.trim();
+      if(cleanUrl) geojsonUrls.push(cleanUrl);
+    });
+  {{ end }}
+
+  if (geojsonUrls.length === 0) {
+    console.error("No GeoJSON files specified or found for map: " + mapId);
+    return;
+  }
+
+  var map = L.map(mapId).setView([0, 0], 2);
+  var locations = [];
+  var currentLocationIndex = -1;
+  var mapBounds = null;
+  var mapFixer = null;
+  var navigationButtons = [];
+
+  /* Keep each map's controls and selection local to this shortcode instance. */
+  var navigationControl = L.control({ position: 'topright' });
+  navigationControl.onAdd = function() {
+    var container = L.DomUtil.create('div', 'leaflet-bar map-location-controls');
+    [
+      { action: 'previous', label: 'Previous location', text: '←' },
+      { action: 'next', label: 'Next location', text: '→' },
+      { action: 'reset', label: 'Reset to default view', text: 'Reset' }
+    ].forEach(function(item) {
+      var button = L.DomUtil.create('button', '', container);
+      button.type = 'button';
+      button.dataset.action = item.action;
+      button.setAttribute('aria-label', item.label);
+      button.title = item.label;
+      button.textContent = item.text;
+      button.disabled = true;
+      navigationButtons.push(button);
+    });
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+    L.DomEvent.on(container, 'click', function(event) {
+      var action = event.target.dataset.action;
+      if (!action || event.target.disabled) return;
+
+      // Stop the startup fit loop before any user-selected view can be overwritten.
+      if (mapFixer !== null) {
+        clearInterval(mapFixer);
+        mapFixer = null;
+      }
+      map.invalidateSize();
+      if (action === 'reset') {
+        currentLocationIndex = -1;
+        map.closePopup();
+        map.fitBounds(mapBounds, { maxZoom: 3, padding: defaultPadding, animate: false });
+        return;
+      }
+
+      currentLocationIndex = currentLocationIndex === -1
+        ? (action === 'next' ? 0 : locations.length - 1)
+        : (currentLocationIndex + (action === 'next' ? 1 : -1) + locations.length) % locations.length;
+      var location = locations[currentLocationIndex];
+      // Choose a zoom that fits the region, then center its pin before opening the popup.
+      map.fitBounds(location.bounds, { padding: defaultPadding, animate: false });
+      map.panTo(location.marker.getLatLng(), { animate: false });
+      location.marker.openPopup();
+    });
+    return container;
+  };
+  navigationControl.addTo(map);
+
+  /* 3. DYNAMIC BASE MAP SELECTION */
+  if (mapStyle === 'minimal') {
+    // Best for highlighting countries/regions with custom polygons
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_4hrz_1_2463db33b111920f1b83db57', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20
+    }).addTo(map);
+  } else if (mapStyle === 'dark') {
+    // Best for high-contrast trail visibility in dark mode
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4hrz_1_2463db33b111920f1b83db57', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20
+    }).addTo(map);
+  } else if (mapStyle === 'esri') {
+    // Good middle ground: modern terrain mapping without visual clutter
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, TomTom, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors, and the GIS User Community',
+      maxZoom: 18
+    }).addTo(map);
+  } else if (mapStyle.startsWith('topo')) {
+    // Default to OpenTopoMap (Best for dedicated hiking detail)
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+      maxZoom: 17
+    }).addTo(map);
+    
+    if (mapStyle === 'topo-trails') {
+      // Only add Waymarked Trails overlay if we are using the Topo map
+      L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
+        attribution: '&copy; Waymarked Trails',
+        maxZoom: 18
+      }).addTo(map);
+    }
+    
+  }
+
+  /* Fetch and render all GeoJSON files before enabling navigation. */
+  try {
+      var datasets = await Promise.all(geojsonUrls.map(async function(url) {
+        var response = await fetch(url);
+        if (!response.ok) throw new Error('Could not load GeoJSON: ' + url + ' (' + response.status + ')');
+        return await response.json();
+      }));
+      var regionFeatures = [];
+      var trailFeatures = [];
+
+      datasets.forEach(data => {
+        var features = [];
+                
+        // 1. Normalize any GeoJSON structure into an array of Features
+        if (data.type === 'FeatureCollection') {
+          features = data.features;
+        } else if (data.type === 'Feature') {
+          features = [data]; // Wrap single Feature objects in an array
+        } else if (data.type === 'Polygon' || data.type === 'MultiPolygon' || data.type === 'LineString' || data.type === 'MultiLineString') {
+          // Fallback for bare geometry objects exported without a Feature wrapper
+          features = [{
+            type: 'Feature',
+            properties: { name: "Unnamed Region" },
+            geometry: data
+          }];
+        }
+
+        // 2. Sort the normalized features into regions and trails
+        features.forEach(feature => {
+          if (!feature || !feature.geometry) return;
+          
+          var geomType = feature.geometry.type;
+          if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+            regionFeatures.push(feature);
+          } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+            trailFeatures.push(feature);
+          }
+        });
+      });
+
+      var allFeaturesGroup = L.featureGroup().addTo(map);
+
+      if (regionFeatures.length > 0) {
+        var regionCollection = turf.featureCollection(regionFeatures);
+        
+        var regionLayer = L.geoJSON(regionCollection, {
+          style: function(feature) {
+            return { fillColor: '#007bff', fillOpacity: 0.7, color: '#0056b3', weight: 2 };
+          },
+          onEachFeature: function(feature, layer) {
+            var areaName = (feature.properties && feature.properties.name) ? feature.properties.name : "Visited Region";
+            layer.bindPopup("<b>" + areaName + "</b>");
+
+            layer.on({
+              click: function(e) {
+                if (mapFixer !== null) {
+                  clearInterval(mapFixer);
+                  mapFixer = null;
+                }
+                currentLocationIndex = locations.findIndex(function(location) { return location.feature === feature; });
+                map.fitBounds(e.target.getBounds(), { padding: defaultPadding, animate: true, duration: 0.5 });
+              },
+              mouseover: function(e) {
+                e.target.setStyle({ fillOpacity: 0.5, weight: 4, color: '#002244' });
+              },
+              mouseout: function(e) {
+                regionLayer.resetStyle(e.target);
+              }
+            });
+          }
+        }).addTo(allFeaturesGroup); // Add to group instead of map
+        
+        /* Calculate center of each region and add a clickable pin */
+        regionFeatures.forEach(function(feature) {
+          var center = turf.centroid(feature); 
+          var coords = center.geometry.coordinates; 
+          var areaName = (feature.properties && feature.properties.name) ? feature.properties.name : "Visited Region";
+          
+          var marker = L.marker([coords[1], coords[0]])
+            .bindPopup("<b>" + areaName + "</b>", { autoPan: false })
+            .addTo(allFeaturesGroup); // Add to group instead of map
+
+          locations.push({ feature: feature, name: areaName, marker: marker, bounds: L.geoJSON(feature).getBounds() });
+
+          marker.on('click', function() {
+            if (mapFixer !== null) {
+              clearInterval(mapFixer);
+              mapFixer = null;
+            }
+            currentLocationIndex = locations.findIndex(function(location) { return location.feature === feature; });
+            map.fitBounds(locations[currentLocationIndex].bounds, { padding: defaultPadding, animate: true, duration: 0.5 });
+          });
+        });
+      }
+
+      locations.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      navigationButtons[0].disabled = locations.length === 0;
+      navigationButtons[1].disabled = locations.length === 0;
+
+      if (trailFeatures.length > 0) {
+        var trailLayer = L.geoJSON(trailFeatures, {
+          style: function(feature) {
+            if (feature.properties && feature.properties.done === true) {
+              return { color: '#28a745', weight: 5, opacity: 1 };
+            } else {
+              return { color: '#dc3545', weight: 4, opacity: 0.8, dashArray: '5, 8' };
+            }
+          },
+          onEachFeature: function (feature, layer) {
+            if (feature.properties && feature.properties.name) {
+              var status = feature.properties.done ? "Completed" : "Planned";
+              layer.bindPopup("<b>" + feature.properties.name + "</b><br>Status: " + status);
+            }
+          }
+        }).addTo(allFeaturesGroup); // Add to group instead of map
+      }
+
+      // --- CENTERING LOGIC ---
+      // Only attempt to center if the group successfully loaded items
+      if (allFeaturesGroup.getLayers().length > 0) {
+        // Get the safe mathematical boundaries of everything in the group
+        mapBounds = allFeaturesGroup.getBounds();
+        navigationButtons[2].disabled = false;
+
+        var fixCount = 0;
+        mapFixer = setInterval(function() {
+          map.invalidateSize();
+          
+          // Use fitBounds instead of setView to prevent the "edge of the world" left-shift bug
+          map.fitBounds(mapBounds, { 
+            maxZoom: 3, // Forces a wide world view
+            padding: defaultPadding,
+            animate: false 
+          });
+          
+          fixCount++;
+          if (fixCount >= 10) {
+            // Stop checking after the Hugo layout finishes settling
+            clearInterval(mapFixer);
+            mapFixer = null;
+          }
+        }, 150);
+      }
+  } catch (error) {
+    console.error('Error loading GeoJSON files:', error);
+  }
+});
+</script>
