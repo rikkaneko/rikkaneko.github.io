@@ -96,6 +96,9 @@ params:
     favicon: "https://files.nekoid.cc/pub/icon/128x128/Cat_Full_V2_Shape_128x128.png"
 
 markup:
+  highlight:
+    anchorLineNos: true
+    lineNos: true
   goldmark:
     renderer:
       unsafe: true
