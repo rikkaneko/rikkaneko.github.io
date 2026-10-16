@@ -1,5 +1,5 @@
 ---
-date: '2026-10-14T17:47:29+08:00'
+date: '2026-10-15T17:47:29+08:00'
 draft: false
 title: 'Linux Network Hardening: Best Practices Using Reverse Proxies, FirewallD and Fail2Ban (Part II)'
 ---
@@ -30,18 +30,17 @@ However, enabling this option effectively *breaks* the ability to automatically 
 
 Note that Docker may assign a different IP to the container on startup unless you configure a static IP explicitly. I would recommend configuring static IP for a reverse proxy container, and then routing all traffic via through container.
 
-```
+```sh
 # StrictForwardPorts=no
 # Automatically add DNAT rewrite rules
-<host-ip:port> ──► [DNAT] ──► <container-ip:port>
+<host-ip:port> -► [DNAT] -► <container-ip:port>
 
 # StrictForwardPorts=yes
 # Requires explicit forward port rules
-<host-ip:port> ──► [Forward port rules (FirewallD)] ──► <container-ip:port>
+<host-ip:port> -► [Forward port rules (FirewallD)] -► <container-ip:port>
 ```
 
 **Example Docker Compose config with static IP**
-
 ```yaml
 service:
   app:
@@ -70,7 +69,7 @@ networks:
 
 **Netfilter Routing Architecture**
 
-```
+{{< ascii_graph >}}
           [ Ingress Traffic ]
                   │
                   ▼
@@ -83,7 +82,7 @@ networks:
               ╱          ╲
     (For This Host)  (For Another Host)
           ╱                 ╲
-        ▼                    ▼
+         ▼                   ▼
     ┌─────────┐         ┌───────────┐
     │  INPUT  │         │  FORWARD  │
     └─────────┘         └───────────┘
@@ -92,12 +91,13 @@ networks:
    [ Host service ]    ┌───────────────┐
                        │  POSTROUTING  │
                        └───────────────┘
-```
+{{</ ascii_graph >}}
+
 Fig. 1. Netfilter Routing Architecture
 
 As you can see from the below diagram, in default settings (`StrictForwardPorts=no`), FirewallD rules will be bypassed by Docker's injected `DNAT` rules in the early `PREROUTING` stage. This will rewrites the destination IP from the host's IP to the container's private bridge IP, therefore, the package will be routed to `FORWARD` hook instead of the `NF_INET_LOCAL_IN` hook where FirewallD public zone input rules mounted. Consequently, any published ports will be exposed to the internet, bypassing all firewall rules.
 
-```
+{{< ascii_graph >}}
                                  [ Ingress Traffic ]
                                          │
                                          ▼
@@ -164,7 +164,8 @@ As you can see from the below diagram, in default settings (`StrictForwardPorts=
                                         │
                                         ▼
                             [ Container Application ]
-```
+{{</ ascii_graph >}}
+
 Fig. 2. Netfilter Packet Flow: Docker Container Ingress  
 *I make this diagram to explain the network traffic internally. If you find there are mistake, please tell me!*
 

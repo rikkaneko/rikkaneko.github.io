@@ -1,0 +1,20 @@
+<link rel="stylesheet" href="https://googleapis.com">
+
+<style>
+  .ascii-graph-container {
+    overflow-x: auto;
+    margin: 1rem 0;
+  }
+  .ascii-graph-container pre,
+  .ascii-graph-container code {
+    font-family: 'Fira Mono', monospace !important;
+    line-height: 1.5 !important;    /* Critical for vertical connection */
+    letter-spacing: 0px !important;  /* Critical for horizontal connection */
+    font-variant-ligatures: none !important;
+    white-space: pre !important;
+  }
+</style>
+
+<div class="ascii-graph-container">
+  <pre><code>{{- .Inner | htmlEscape | safeHTML -}}</code></pre>
+</div>
