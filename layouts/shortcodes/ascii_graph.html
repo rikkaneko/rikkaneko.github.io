@@ -1,17 +1,23 @@
-<link rel="stylesheet" href="https://googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap">
 
 <style>
   .ascii-graph-container {
     overflow-x: auto;
     margin: 1rem 0;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
   }
   .ascii-graph-container pre,
   .ascii-graph-container code {
     font-family: 'Fira Mono', monospace !important;
-    line-height: 1.5 !important;    /* Critical for vertical connection */
-    letter-spacing: 0px !important;  /* Critical for horizontal connection */
+    line-height: 1.5 !important;
+    letter-spacing: 0px !important;
     font-variant-ligatures: none !important;
     white-space: pre !important;
+
+    -webkit-text-size-adjust: none !important; /* Prevents iOS from inflating text */
+    text-size-adjust: none !important;         /* Prevents Android/others from inflating text */
+    font-size: 14px !important;
   }
 </style>
 
