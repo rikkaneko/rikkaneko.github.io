@@ -21,6 +21,10 @@ languages:
         name: Contact
         pageRef: /post/contact-me
         weight: 11
+      - identifier: friends
+        name: Friends
+        pageRef: /post/friends
+        weight: 12
       - identifier: project
         name: Project
         pageRef: /post/my-project
@@ -47,6 +51,10 @@ languages:
           name: "聯絡我"
           pageRef: /post/contact-me
           weight: 11
+        - identifier: friends
+          name: "友鏈"
+          pageRef: /post/friends
+          weight: 12
         - identifier: project
           name: "我的項目"
           pageRef: /post/my-project
@@ -102,6 +110,10 @@ markup:
   goldmark:
     renderer:
       unsafe: true
+    parser:
+      attribute:
+        block: true
+        title: true
 
 caches:
   images:
