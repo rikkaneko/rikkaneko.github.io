@@ -8,7 +8,7 @@ title: '友鏈'
 這裡存放着我的朋友們的博客網站鏈結，想必你能在其中發掘到有趣的內容。  
 歡迎跟我交換友鏈～～！😄
 
-|博客鏈結（順序按加入時間排列）||
+|博客鏈結（順序按加入時間排列）| |
 |-|-|
 | [Vifly 的博客](https://viflythink.com) | {{< figure src="https://avatars.githubusercontent.com/u/48406926?v=4" alt="Vifly" width="48px" >}} |
 | [liolok](https://liolok.com) | {{< figure src="https://avatars.githubusercontent.com/u/34574198?v=4" width="48px" >}} |

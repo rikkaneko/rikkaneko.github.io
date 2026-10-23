@@ -5,7 +5,7 @@ lang: en
 title: 'Contact'
 ---
 
-|Contact||
+|Contact| |
 |-|-|
 |E-Mail ✉️|<a href="mailto:rikkaneko23%40gmail.com?subject=Hello">rikkaneko23@gmail.com</a>|
 |Telegram|[@nekonull_ptr](https://t.me/nekonull_ptr)|

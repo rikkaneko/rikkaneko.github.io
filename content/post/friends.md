@@ -9,7 +9,7 @@ Here are the links to my friends' blogs. I believe some of their posts will insp
 Welcome to exchange blog link wit me~~ :D
 
 
-|Links||
+|Links| |
 |-|-|
 | [Vifly 的博客](https://viflythink.com) | {{< figure src="https://avatars.githubusercontent.com/u/48406926?v=4" alt="Vifly" width="48px" >}} |
 | [liolok](https://liolok.com) | {{< figure src="https://avatars.githubusercontent.com/u/34574198?v=4" width="48px" >}} |

@@ -5,7 +5,7 @@ lang: zh
 title: '聯絡我'
 ---
 
-|聯絡方式||
+|聯絡方式| |
 |-|-|
 |電子郵件 ✉️|<a href="mailto:rikkaneko23%40gmail.com?subject=Hello">rikkaneko23@gmail.com</a>|
 |Telegram|[@nekonull_ptr](https://t.me/nekonull_ptr)|

@@ -13,6 +13,7 @@ title: 'Traveling'
   - Changsha
   - Chongqing
   - Guangdong# (Including Guangzhou and Shenzhen)
+  - Hainan
   - Shanghai
   - Xian
 - Japan
