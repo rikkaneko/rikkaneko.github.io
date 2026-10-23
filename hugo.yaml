@@ -6,6 +6,13 @@ copyright: "© 2026 Joe"
 defaultContentLanguage: en
 defaultContentLanguageInSubdir: false
 disableDefaultLanguageRedirect: false
+enableGitInfo: true
+
+frontmatter:
+  lastmod:
+  - lastmod
+  - :git
+  - :fileModTime
 
 languages:
   en:
@@ -88,6 +95,7 @@ params:
   hidemeta: false
   hideSummary: false
   showtoc: true
+  showLastmod: true
   tocopen: true
   homeInfoParams:
     Title: Welcome to my own space! 👋
