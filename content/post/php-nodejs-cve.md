@@ -72,6 +72,9 @@ It is worth noting that [session upload progress](https://www.php.net/manual/en/
 ### Workaround
 
 #### 1. Set `session.upload_progress.enabled=0` in main configuration and restart all workers to remove this easiest attack path.
+
+*Update 27 Oct*: This also mitigate the newer [CVE-2026-115560](https://www.php.net/archive/2026.php#2026-10-23-1) which directly relates to this feature.
+
 #### 2. Disable all fatal error, especially `fatal_error_backtraces=0`, warnings and diagnostics from all INI configuration.
 #### 3. Set `pm.max_requests=1` to avoid concurrent workers. Note that this options may harm performance.
 
@@ -94,7 +97,7 @@ Since this library is widely used by the network libraries for popular languages
 
 The fix is available in [google/brotli](https://github.com/google/brotli) v1.2.1 @ [0ed4268a](https://github.com/google/brotli/commit/0ed4268a) commit. 
 
-Brotli stream is organized into metablocks, which contains multiple blocks. Each block has a `block_length` and its instruction to be decoded. If that counter reached zero, decoder will fetch new block from the Huffman tree until drained.
+Brotli stream is organized into metablocks, which contains multiple blocks. Each block has a `block_length` and its instruction to be decoded. If that counter reached zero, decoder will fetch new block from the Huffman tree.
 
 The core problem is in `c/dec/decode.c`. It defined a `BROTLI_SAFE` marco to map `BROTLI_FALSE` result from `SafeXXX` function to `BROTLI_DECODER_NEEDS_MORE_INPUT`. This marco blindly treat falsy result from safe function to be requesting new block.
 
@@ -112,29 +115,28 @@ The core problem is in `c/dec/decode.c`. It defined a `BROTLI_SAFE` marco to map
   }
 ```
 
-In RFC 7932, the [maximum metablock length](https://www.rfc-editor.org/info/rfc7932/#section-2) defined as 16,777,216 (16 MiB) bytes. In the Proof-Of-Concept code, the attacker packed exactly 16,777,216 block instructions into a single metablock, but wrote nothing to the output buffer to achieve `s->block_length[2] == 0`.
+In RFC 7932, the [maximum metablock length](https://www.rfc-editor.org/info/rfc7932/#section-2) defined as 16,777,216 (16 MiB) bytes. In the Proof-Of-Concept code, the attacker packed exactly 16,777,216 block instructions into a single metablock to drain `s->block_length[2]` to `0`.
 
 ```c
 ...
 CommandPostDecodeLiterals:
-  // safe = true;
   if (BROTLI_PREDICT_FALSE(s->block_length[2] == 0)) {
     BROTLI_SAFE(DecodeDistanceBlockSwitch(s));
   }
-  ...
+  BROTLI_SAFE(ReadDistance(s, br)); // -> --s->block_length[2];
 ```
 
 ```c
 static BROTLI_INLINE BROTLI_BOOL DecodeDistanceBlockSwitchInternal(
     int safe, BrotliDecoderState* s) {
-  if (!DecodeBlockTypeAndLength(safe /* true */, s, 2)) {
+  if (!DecodeBlockTypeAndLength(safe, s, 2)) {
     return BROTLI_FALSE;
   }
   ...
 }
 ```
 
-If a stream declared a single block (`max_block_type <= 1`) and `s->block_length[2] == 0` successfully achieved, the decoder will enter an invalid state --- it need new block, but there are actually no block remains. Due to the missed boundary check here, attackers can write malicious bytes outside the output buffer region.
+If a stream declares exactly a single block (`max_block_type <= 1`) and `s->block_length[2]` is drained to 0 , the decoder will enter an invalid state --- it need new block, but there are actually no block remains. Once this fake `NEEDS_MORE_INPUT` states triggered, decoder will keep feeding new bytes to the internal buffer forever.
 
 ```c
 static BROTLI_INLINE BROTLI_BOOL DecodeBlockTypeAndLength(int safe, BrotliDecoderState* s, int tree_type) {
@@ -145,7 +147,31 @@ static BROTLI_INLINE BROTLI_BOOL DecodeBlockTypeAndLength(int safe, BrotliDecode
   }
 ```
 
-To achieve RCE, an attacker must know the target process's exact memory layout, down to the specific virtual memory addresses of the base system libraries. Moreover, existing verified POCs requir the target system to be running without [ASLR](https://en.wikipedia.org/wiki/Address_space_layout_randomization) and to run a [non-PIE](https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html#index-fpie) executable, which is not easily found in the production environment.
+Due to the missed boundary check here, attackers can write whatever malicious bytes outside the output buffer. In compiled languages like C, the memory layout of a data struct is *continuous and often predictable*, out-of-bound write to `buffer.u8` will overwrite the subsequent fields.
+
+```c
+struct BrotliDecoderStateStruct {
+  ...
+  union {
+    uint64_t u64; // Not used
+    uint8_t u8[8]; // Offset 72
+  } buffer;
+  brotli_reg_t buffer_length; // Offset 80
+  int pos; // Offset 88: Current write position
+  ...
+  uint8_t* ringbuffer; // Offset 136 - Ring buffer, write position controlled by pos
+}
+```
+
+After subsequent fields are overwritten with attacker-controlled values, the attacker can now control the write position (via the `pos` field) relative to the memory location of the `ringbuffer` within the application process.
+
+```c
+uint8_t* copy_dst = &s->ringbuffer[pos];
+uint8_t* copy_src = &s->ringbuffer[src_start];
+memmove16(copy_dst, copy_src);
+```
+
+Luckily, to achieve RCE, an attacker must know the target process's exact memory layout, down to the specific virtual memory addresses of the base system libraries. Moreover, existing verified POCs require the target system to be running without [ASLR](https://en.wikipedia.org/wiki/Address_space_layout_randomization) and to run a [non-PIE](https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html#index-fpie) executable, which is not easily found in the production environment.
 
 ### Workaround
 
