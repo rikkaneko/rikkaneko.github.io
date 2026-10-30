@@ -14,8 +14,6 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
 
 ---
 
-# Architectural Differences & Limitations
-
 ## Default behavior changes
 
 ### The Pod Network Namespace
@@ -167,7 +165,7 @@ Yaml=/opt/app/app.yaml
 Network=proxy-net.network
 ```
 
-### 2.6. Health Checks
+### Health Checks
 Monitoring container state.
 
 **Docker Compose:**
