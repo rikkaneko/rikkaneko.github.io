@@ -1,8 +1,10 @@
 ---
 date: '2026-10-29T15:00:14+08:00'
 draft: false
-title: 'Migrate Docker Compose to Podman Quadlets Kube'
+title: 'Migrate Docker Compose to Podman Quadlets'
 ---
+
+## Preface
 
 Docker is a convenient tool for rapid development and deployment. Before its creation, developers often needed to set up massive development environments locally or in VMs for cross-platform development. Now, they can pull pre-built images from upstream vendors and immediately start building projects, which is especially useful for deep learning and web development. Maintaining production environments is also a headache without Docker. For small-scale application services, simply including a `Dockerfile` and `docker-compose.yaml` in a repository enables rapid development by pipelining image building, service lifecycle, storage, and network management.
 
@@ -12,27 +14,55 @@ After researching different alternatives using LLM, I found [Podman Quadlets](ht
 
 This post summarizes the key steps to migrate `docker-compose.yml` file into Podman Quadlet Kube for my own reference.
 
----
-
 ## Default behavior changes
 
-### The Pod Network Namespace
-*   **Compose:** Each container gets a unique IP on a bridge network and resolves other containers via DNS (e.g., `http://database:5432`).
-*   **Podman `.kube`:** All containers defined in a single Kubernetes YAML file are scheduled into a **Pod**. They share the exact same network namespace. 
-    *   **Limitation - Port Conflicts:** You cannot have two containers in the same Pod listening on the same internal port (e.g., two web apps listening on port 80).
-    *   **Behavioral Change - Routing:** Containers within the same Pod communicate via `localhost` (e.g., `http://127.0.0.1:5432`). 
+### Network Namespace
+*   **Docker Compose:** Each container gets a unique IP on a bridge network and resolves other containers via internal DNS.
+*   **Podman `.kube`:** All containers defined in a single `.kube` file are scheduled into a **Pod**. They share the exact same network namespace. 
+    *   **Zero Network Isolation:** Every container in the Pod binds to the same loopback interface `lo`, therefore, no network policies can block traffic inside a shared network namespace.
+    *   **Port Conflicts:** You cannot have two containers in the same Pod listening on the same internal port.
+
+### User Namespace
+*   **Docker Compose:** Rootful Docker uses 1:1 pass-through for user namespace. The container process runs as the same UID on both the host and container.
+    *   **Root Risk:** If a container in Docker Compose does not specify a user, it runs as UID 0 (root) and be able to access file in mounted filesystem as root.
+    *   **Default Behavior:** User namespace is strictly isolated per container. You must explicitly opt-in to sharing IPC namespace using `ipc: shareable` or `ipc: host`.
+*   **Podman `.kube`:** A Rootless Podman instance shares a single `subuid` allocation by default. While Podman does have a `--userns=auto` feature that can generate unique, separate UID mappings per container to isolate them from each other, but this feature cannot be used when containers share a Pod.
+    *   **Multiple Users In A Container:** The kernel will map container process UID/GID to the specific UID/GID in the host according to [setuidmap](https://man7.org/linux/man-pages/man1/newuidmap.1.html)/[setgidmap](https://man7.org/linux/man-pages/man1/newgidmap.1.html) set by Podman.
+    *   **User Namespace:** The kernel will isolate the network namespace (`lo`) and IPC namespace ([shm](https://man7.org/linux/man-pages/man7/shm_overview.7.html) and [sysvipc](https://man7.org/linux/man-pages/man7/sysvipc.7.html)) between user namespaces.
+    *   **Default Behavior:** Same behavior as Docker, except for implicitly sharing the same user namespace among all containers *within the same Pod*.
 
 ### Dependency Management
-*   **Compose:** Uses `depends_on` to control startup order.
+*   **Docker Compose:** Uses `depends_on` to control startup order.
 *   **Podman `.kube`:** Kubernetes natively starts all containers in a Pod concurrently. To enforce order *within* a Pod, you must use `initContainers`. To enforce order *between* different Pods, you must use systemd directives (`After=`, `Requires=`) in the `.kube` wrapper.
 
 ### Variable Interpolation
 *   **Compose:** Natively expands environment variables in the YAML (e.g., `user: "${UID}"` or `volumes: ["./data:/data"]`).
 *   **Podman `.kube`:** Kubernetes YAML is strictly declarative. It does **not** evaluate shell variables or relative paths. You must hardcode explicit UIDs, GIDs, and absolute host paths.
 
----
-
 ## Equivalent Configurations
+
+### Set User/Group Identity
+Specify user/group identity for the container process.
+
+**Docker Compose:**
+```yaml
+services:
+  app:
+    user: "1000:1000"
+    group_add:
+      - "2000"
+      - "3000"
+```
+
+**Kubernetes YAML (`.yaml`):**
+```yaml
+containers:
+  - name: app
+    securityContext:
+      runAsUser: 1000 
+      runAsGroup: 1000
+      supplementalGroups: [2000, 3000] 
+```
 
 ### Commands and Entrypoints
 Docker overrides the default execution command using `command` and `entrypoint`. Kubernetes uses `args` and `command`.
