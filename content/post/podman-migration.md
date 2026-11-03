@@ -41,11 +41,15 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
 
 ## Host access from containers
 
-When running on native Linux system, both Docker and Podman *do not* host access by default. Containers can access any host service bound to `0.0.0.0/0`. 
+When running on native Linux system, both Docker and Podman *do not* block host access by default. Containers can access any host service bound to `0.0.0.0/0`. 
 
 > You may find the effect of "host isolation" when using Docker Desktop on Mac/Windows, where the lightweight Linux VM physically separates the container network from your host.
 
 For rootful Docker/Podman, the bridge interfaces (e.g. `docker0` or `podman`) for the containers exist on the host kernel. Therefore, you may use FirewallD rules to block the bridge subnet from accessing host addresses, including both the host IPs and the local LAN.
+
+### Workaround: Add firewall rules (rootful)
+
+*This works when using rootful Docker/Podman container.*
 
 ```bash
 sudo firewall-cmd --permanent --new-zone=podman-isolated
@@ -57,7 +61,23 @@ sudo firewall-cmd --permanent --zone=podman-isolated --add-rich-rule='rule famil
 ```
 
 However, host access from rootless containers cannot be filtered since the virtual bridge is created inside the unprivileged user namespace. Podman uses `pasta` which copies the configuration from the host bridge interface, or `slirp4netns` which performs NAT, to route traffic to/from the host.  
-The kernel will view the source IP as if come from the host, and therefore the traffic cannot be filtered.
+The kernel will view the source IP as if come from the host, and therefore the traffic cannot be filtered by IP.
+
+### Workaround: Disable host access from containers (rootless)
+
+*This works when using `pasta` for userspace networking in rootless Podman container.*
+
+```bash
+podman run --net=pasta:--map-guest-addr=none ...
+```
+
+*Quadlet Wrapper (`*.kube`):*
+
+```ini
+[Kube]
+# Block host access but allow the internet via pasta
+Network=pasta:--map-guest-addr=none
+```
 
 ## Equivalent Configurations
 
