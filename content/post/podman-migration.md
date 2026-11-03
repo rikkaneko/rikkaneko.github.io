@@ -18,7 +18,7 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
 
 ### Network Namespace
 *   **Docker Compose:** Each container gets a unique IP on a bridge network and resolves other containers via internal DNS.
-*   **Podman `.kube`:** All containers defined in a single `.kube` file are scheduled into a **Pod**. They share the exact same network namespace. 
+*   **Podman `.kube`:** All containers defined in a single `.kube` file are scheduled into a **Pod**. They share the exact same network namespace.
     *   **Zero Network Isolation:** Every container in the Pod binds to the same loopback interface `lo`, therefore, no network policies can block traffic inside a shared network namespace.
     *   **Port Conflicts:** You cannot have two containers in the same Pod listening on the same internal port.
 
@@ -27,13 +27,13 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
     *   **Root Risk:** If a container in Docker Compose does not specify a user, it runs as UID 0 (root) and be able to access file in mounted filesystem as root.
     *   **Default Behavior:** User namespace is strictly isolated per container. You must explicitly opt-in to sharing IPC namespace using `ipc: shareable` or `ipc: host`.
 *   **Podman `.kube`:** A Rootless Podman instance shares a single `subuid` allocation by default. While Podman does have a `--userns=auto` feature that can generate unique, separate UID mappings per container to isolate them from each other, but this feature cannot be used when containers share a Pod.
-    *   **Multiple Users In A Container:** The kernel will map container process UID/GID to the specific UID/GID in the host according to [setuidmap](https://man7.org/linux/man-pages/man1/newuidmap.1.html)/[setgidmap](https://man7.org/linux/man-pages/man1/newgidmap.1.html) set by Podman.
+    *   **Multiple Users In A Container:** The kernel will map container process UID/GID to the specific UID/GID in the host set by [setuidmap](https://man7.org/linux/man-pages/man1/newuidmap.1.html)/[setgidmap](https://man7.org/linux/man-pages/man1/newgidmap.1.html) on container init.
     *   **User Namespace:** The kernel will isolate the network namespace (`lo`) and IPC namespace ([shm](https://man7.org/linux/man-pages/man7/shm_overview.7.html) and [sysvipc](https://man7.org/linux/man-pages/man7/sysvipc.7.html)) between user namespaces.
     *   **Default Behavior:** Same behavior as Docker, except for implicitly sharing the same user namespace among all containers *within the same Pod*.
 
 ### Dependency Management
 *   **Docker Compose:** Uses `depends_on` to control startup order.
-*   **Podman `.kube`:** Kubernetes natively starts all containers in a Pod concurrently. To enforce order *within* a Pod, you must use `initContainers`. To enforce order *between* different Pods, you must use systemd directives (`After=`, `Requires=`) in the `.kube` wrapper.
+*   **Podman `.kube`:** Kubernetes natively starts all containers in a Pod concurrently. To run one-time pre-flight task *within* a Pod, use `initContainers`. To enforce order *between* different Pods, you must use systemd directives (`After=`, `Requires=`) in the `.kube` wrapper.
 
 ### Variable Interpolation
 *   **Compose:** Natively expands environment variables in the YAML (e.g., `user: "${UID}"` or `volumes: ["./data:/data"]`).
@@ -62,6 +62,57 @@ containers:
       runAsUser: 1000 
       runAsGroup: 1000
       supplementalGroups: [2000, 3000] 
+```
+
+### Build image from Dockerfile
+Build image from Dockerfile on container start/restart. Unlike Docker Compose, Podman Quadlets does not support image building in a single Kubernetes YAML. Quadlets uses a `.build` unit to compile the image, and a `.kube` unit to execute it.
+
+**Docker Compose:**
+```yaml
+services:
+  app:
+    build:
+      context: ./
+      args:
+        BUILD_VERSION: v1.2.4
+```
+
+**Quadlets build (`.build`):**
+```toml
+[Unit]
+Description=Build app
+
+[Build]
+ImageTag=localhost/app:latest
+File=/path/to/build/file
+
+# Plain text variables directly to the build file
+BuildArg=BUILD_VERSION=v1.2.4
+Secret=secret-token,type=mount,src=/path/to/secret/file
+```
+
+**Build file (`ContainerFile`)**
+
+When used with Quadlets, you must use `ARG` to capture `BuildArg=` into the build context, and then assign it to `ENV`.
+
+Note that `ENV` will make the variable available in the final image via `podman inspect`.
+
+
+```dockerfile
+FROM docker.io/library/node:20-alpine
+WORKDIR /app
+
+# Capture Quadlet BuildArg= variable
+ARG BUILD_VERSION=default_version_string
+
+# Persist the environment variable to the final image
+ENV BUILD_VERSION=$BUILD_VERSION
+
+# Mount the secret file to /run/secrets/<id>
+RUN --mount=type=secret,id=secret-token \
+    # Dump the secret file content as a build time variable only
+    export APP_TOKEN=$(cat /run/secrets/secret-token) && \
+    npm run build
 ```
 
 ### Commands and Entrypoints
@@ -137,9 +188,7 @@ volumes:
 ```
 
 ### Environment Variable Injection (.env files)
-Injecting variables directly or via external files.  
-
-Unlike a full Kubernetes cluster, Podman does not have a shared global registry for ConfigMaps. The `.env` ConfigMap generated by the Quadlet is ephemeral and strictly isolated to this specific Pod. Therefore, you can use the same filename `.env` across different projects on the same host.
+Injecting variables directly or via external files. Quadlet's `ConfigMap=` reads Kubernetes ConfigMap YAML; it does not convert dotenv files. Put runtime values directly in `config.yaml` and inject them as ordinary environment variables.
 
 **Docker Compose:**
 ```yaml
@@ -150,13 +199,23 @@ env_file:
 ```
 
 **Kubernetes YAML (`.yaml`) + Quadlet (`.kube`):**
-To mimic `env_file`, we use the Quadlet wrapper to dynamically generate a `ConfigMap` at boot.
+To supply the equivalent settings, write a ConfigMap and reference its metadata name.
+
+*The ConfigMap (`config.yaml`):*
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  NODE_ENV: "production"
+```
 
 *The Quadlet Wrapper (`app.kube`):*
 ```ini
 [Kube]
 Yaml=/opt/app/app.yaml
-ConfigMap=/opt/app/.env
+ConfigMap=/opt/app/config.yaml
 ```
 
 *The Kubernetes Manifest (`app.yaml`):*
@@ -167,10 +226,10 @@ containers:
     env:
       - name: LOG_LEVEL
         value: "debug"
-    # Inject all from the generated .env ConfigMap
+    # Inject all entries from the supplied ConfigMap
     envFrom:
       - configMapRef:
-          name: .env
+          name: app-config
 ```
 
 ### Networks
@@ -223,48 +282,172 @@ containers:
 
 ## Example Case
 
-A Node.js backend relying on a Postgres database. We want to expose the backend port, persist the DB data, use an `.env` file for secrets, and ensure the DB is healthy before the backend starts.
+A Node.js app and PostgreSQL database run in **separate Pods on the same network**. The app connects to the database service thought `app-db:5432`. Port `3000` from `app` is published to port `8080`.
 
-### Kubernetes Manifest: `/opt/stack/stack.yaml`
+### Build file: `/opt/app/ContainerFile.app`
+
+```dockerfile
+FROM docker.io/library/node:24-alpine
+WORKDIR /app
+
+ARG BUILD_VERSION=v1.0
+ENV BUILD_VERSION=${BUILD_VERSION}
+
+RUN npm install --global pnpm;
+COPY . .
+
+# The project's build consumes APP_TOKEN only during this RUN instruction.
+RUN --mount=type=secret,id=secret-token \
+    set -eu; \
+    export APP_TOKEN="$(cat /run/secrets/secret-token)"; \
+    pnpm install --frozen-lockfile; \
+    pnpm run build; \
+    pnpm prune --prod;
+
+ENV NODE_ENV=production
+USER node
+EXPOSE 3000
+CMD ["pnpm", "start"]
+```
+
+Assumes `/opt/app/.env.build-token` contains the raw build token.
+
+### Build exclusions: `/opt/app/.containerignore`
+
+```text
+.git
+.env*
+config.yaml
+*-secret.yaml
+node_modules
+```
+
+### Build Quadlet: `~/.config/containers/systemd/app.build`
+
+```ini
+[Unit]
+Description=Build Node.js app
+
+[Build]
+ImageTag=localhost/app:v1.0
+File=/opt/app/ContainerFile.app
+SetWorkingDirectory=/opt/app
+BuildArg=BUILD_VERSION=v1.0
+Secret=id=secret-token,src=/opt/app/.env.build-token
+
+[Service]
+TimeoutStartSec=900
+```
+
+### Network Quadlet: `~/.config/containers/systemd/app.network`
+
+```ini
+[Network]
+NetworkName=app-net
+```
+
+### Runtime configuration: `/opt/app/config.yaml`
+
+Both Quadlets load this file with `ConfigMap=`. If edited this file, the affected services need to be restarted.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  PORT: "3000"
+  PGHOST: "app-db"
+  PGDATABASE: "app"
+  PGUSER: "app"
+  DB_PASSWORD: "replace-with-database-password"
+  API_KEY: "replace-with-runtime-api-key"
+```
+
+### Kubernetes Manifest: `/opt/app/app.yaml`
+
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: my-stack
+  name: app-app
 spec:
-  # initContainers run sequentially before normal containers start.
-  # This replaces Compose's `depends_on: condition: service_healthy`
+  # Verify an authenticated connection before starting the backend.
   initContainers:
     - name: wait-for-db
       image: docker.io/library/postgres:15
-      command: ['sh', '-c', 'until pg_isready -h 127.0.0.1 -p 5432; do echo waiting for db; sleep 2; done;']
-  
+      command: ["sh", "-ec"]
+      args:
+        - |
+          for attempt in $(seq 1 60); do
+            if psql -w -c 'SELECT 1' >/dev/null 2>&1; then
+              exit 0;
+            fi;
+            sleep 2;
+          done;
+          echo "Database did not become ready" >&2;
+          exit 1;
+      envFrom:
+        - configMapRef:
+            name: app-config
+
+  containers:
+    - name: backend
+      image: localhost/app:v1.0
+      imagePullPolicy: Never
+      ports:
+        - containerPort: 3000
+          hostPort: 8080
+      envFrom:
+        - configMapRef:
+            name: app-config
+```
+
+### Quadlet: `~/.config/containers/systemd/app-app.kube`
+
+```ini
+[Unit]
+Description=Backend App Pod
+Requires=app-build.service app-db.service
+After=network-online.target app-build.service app-db.service
+
+[Kube]
+Yaml=/opt/app/app.yaml
+ConfigMap=/opt/app/config.yaml
+Network=app.network
+
+[Service]
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
+```
+
+Note that a `.kube` manifest does not automatically depend on that build unit, so this manifest explicitly requires `app-build.service` using `Requires=`, while `After=` specifies the orders for service startup. 
+
+### Kubernetes Manifest: `/opt/app/db.yaml`
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-db
+spec:
   containers:
     - name: database
       image: docker.io/library/postgres:15
       envFrom:
         - configMapRef:
-            name: .env
+            name: app-config
       volumeMounts:
         - name: pg-data
           mountPath: /var/lib/postgresql/data
       livenessProbe:
         exec:
-          command: ["pg_isready", "-U", "postgres"]
+          command: ["pg_isready", "-h", "127.0.0.1", "-U", "app", "-d", "app"]
         periodSeconds: 10
-
-    - name: backend
-      image: docker.io/myorg/backend:latest
-      ports:
-        - containerPort: 3000
-          hostPort: 8080
-      env:
-        # Connect via localhost since they share the Pod network namespace
-        - name: DB_HOST
-          value: "127.0.0.1"
-      envFrom:
-        - ConfigMap:
-            name: .env
+        initialDelaySeconds: 30
+        failureThreshold: 6
 
   volumes:
     - name: pg-data
@@ -272,20 +455,55 @@ spec:
         claimName: postgresql-data
 ```
 
-### Quadlet: `~/.config/containers/systemd/stack.kube`
+### Quadlet: `~/.config/containers/systemd/app-db.kube`
+
 ```ini
 [Unit]
-Description=My Full Stack Application
+Description=PostgreSQL Database Pod
 After=network-online.target
 
 [Kube]
-# Absolute path to the manifest
-Yaml=/opt/stack/stack.yaml
-# Mounts /opt/stack/.env as a ConfigMap dynamically
-ConfigMap=/opt/stack/.env
-# Optional: Enable auto-updates if the container image has a new tag in the registry
-AutoUpdate=registry
+Yaml=/opt/app/db.yaml
+ConfigMap=/opt/app/config.yaml
+Network=app.network
+
+[Service]
+TimeoutStartSec=900
 
 [Install]
 WantedBy=default.target
+```
+
+### Start and verify
+
+After saving the files:
+
+```bash
+systemctl --user daemon-reload;
+systemctl --user start app-app.service;
+systemctl --user status app-build.service app-db.service app-app.service;
+journalctl --user -u app-app.service -u app-db.service -n 100 --no-pager;
+curl --fail http://127.0.0.1:8080/;
+```
+
+Verify if database service starts successfully:
+
+```bash
+podman run --rm -it --pod app-app docker.io/library/postgres:15 \
+  psql -W -h app-db -U app -d app -c 'SELECT 1';
+```
+
+Enable [linger](https://wiki.archlinux.org/title/Systemd/User#Automatic_start-up_of_systemd_user_instances) to start user services at startup automatically. Note that you cannot "enable" the systemd service generated by Podman because they are [transient by systemd](https://docs.podman.io/en/stable/markdown/podman-systemd.unit.5.html#enabling-unit-files).  
+
+After changing app source or build inputs, rebuild and restart explicitly:
+
+```bash
+systemctl --user restart app-build.service;
+systemctl --user restart app-app.service;
+```
+
+Stop both Pods with 
+
+```bash
+systemctl --user stop app-app.service app-db.service
 ```
