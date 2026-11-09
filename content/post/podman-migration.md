@@ -241,7 +241,7 @@ env_file:
 **Kubernetes YAML (`.yaml`) + Quadlet (`.kube`):**
 To supply the equivalent settings, write a ConfigMap and reference its metadata name.
 
-*The ConfigMap (`config.yaml`):*
+**ConfigMap (`config.yaml`):**
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -251,14 +251,14 @@ data:
   NODE_ENV: "production"
 ```
 
-*The Quadlet Wrapper (`app.kube`):*
+**Quadlet Wrapper (`*.kube`):**
 ```ini
 [Kube]
 Yaml=/opt/app/app.yaml
 ConfigMap=/opt/app/config.yaml
 ```
 
-*The Kubernetes Manifest (`app.yaml`):*
+**Kubernetes YAML (`.yaml`):**
 ```yaml
 containers:
   - name: app
@@ -273,7 +273,9 @@ containers:
 ```
 
 ### Networks
-Attaching the stack to an external/shared network (e.g., a reverse proxy network).
+
+#### Simple custom network
+Attaching the stack to an shared network.
 
 **Docker Compose:**
 ```yaml
@@ -283,8 +285,15 @@ networks:
     external: true
 ```
 
+**Network Quadlet: `~/.config/containers/systemd/proxy-net.network`:**
+```ini
+[Network]
+NetworkName=proxy-net
+```
+
 **Quadlet Wrapper (`.kube`):**
-Networking configuration is completely removed from the YAML and handled by the systemd wrapper.
+Networking configuration is handled by the systemd wrapper.
+
 ```ini
 [Unit]
 After=network-online.target proxy-net.network
@@ -292,6 +301,60 @@ After=network-online.target proxy-net.network
 [Kube]
 Yaml=/opt/app/app.yaml
 Network=proxy-net.network
+```
+
+#### Network with static IP assignment
+Attaching the stack to an shared network with static IP.
+
+**Docker Compose:**
+```yaml
+services:
+  proxy:
+    networks:
+      default:
+        ipv4_address: 172.20.0.254
+
+networks:
+  default:
+    name: proxy-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+```
+
+**Network Quadlet: `~/.config/containers/systemd/proxy-net.network`:**
+```ini
+[Network]
+NetworkName=proxy-net
+Subnet=172.20.0.0/24
+```
+
+**Quadlet Wrapper (`.kube`):**
+Networking configuration is handled by the systemd wrapper.
+
+```ini
+[Unit]
+After=network-online.target proxy-net.network
+
+[Kube]
+Yaml=/opt/app/app.yaml
+Network=proxy-net.network
+```
+
+**Kubernetes YAML (`.yaml`):**
+List raw IP address within the defined subnet. Since the network namespace is shared within a pod, the IP is assigned to the pod itself,  and and all containers inside it share that IP.
+
+```yaml
+metadata:
+  annotations:
+    containers.podman.io/networks: |
+      [
+        {
+          "name": "proxy-net",
+          "static-ips": ["172.20.0.254"]
+        }
+      ]
 ```
 
 ### Health Checks
