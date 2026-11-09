@@ -136,6 +136,8 @@ BuildArg=BUILD_VERSION=v1.2.4
 Secret=id=secret-token,src=/path/to/secret/file
 ```
 
+`BuildArg=` in `[Build]` is supported from [Podman v5.7](https://docs.podman.io/en/v5.7.0/markdown/podman-systemd.unit.5.html#buildarg). Before v5.7, use `PodmanArgs=--build-arg=BUILD_VERSION=v1.2.4` in `[Build]` instead.
+
 **Build file (`ContainerFile`)**
 
 When used with Quadlets, use `ARG` to capture `BuildArg=` during the build. Assign it to `ENV` only if it is also needed at runtime. The [build secret](https://docs.podman.io/en/latest/markdown/podman-build.unit.5.html#secret-id-id-src-envorfile-env-env-type-file-env) is supplied separately and mounted by the `RUN` instruction.
@@ -235,7 +237,7 @@ volumes:
 ### Environment Variable Injection
 Injecting variables directly or via external files. 
 
-Quadlet's `ConfigMap=` reads Kubernetes ConfigMap YAML only, it cannot support dotenv (`.env`) files. Put runtime values directly in `config.yaml` and inject them as ordinary environment variables.
+Quadlet's `ConfigMap=` requires valid Kubernetes ConfigMap YAML files. Put runtime values directly in `config.yaml` and inject them as ordinary environment variables.
 
 **Docker Compose:**
 ```yaml
@@ -278,6 +280,30 @@ containers:
       - configMapRef:
           name: app-config
 ```
+
+**Image build variables (`.build`):**
+Use systemd's [EnvironmentFile=](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=) in `[Service]` section to load environment variables into the Podman process for building images.
+
+> This option does not apply to pod ran by Podman Quadlet kube as it ignored by K8s spec.
+
+**Environment file (`/opt/app/.env.build`):**
+```text
+BUILD_VERSION=v1.2.4
+```
+
+**Quadlet build (`.build`):**
+```ini
+[Build]
+ImageTag=localhost/app:latest
+File=/opt/app/ContainerFile.app
+SetWorkingDirectory=/opt/app
+BuildArg=BUILD_VERSION=${BUILD_VERSION}
+
+[Service]
+EnvironmentFile=/opt/app/.env.build
+```
+
+Restart the build service after editing the environment file.
 
 ### Networks
 
