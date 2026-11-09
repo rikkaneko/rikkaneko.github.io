@@ -8,9 +8,9 @@ title: 'Migrate Docker Compose to Podman Quadlets'
 
 Docker is a convenient tool for rapid development and deployment. Before its creation, developers often needed to set up massive development environments locally or in VMs for cross-platform development. Now, they can pull pre-built images from upstream vendors and immediately start building projects, which is especially useful for deep learning and web development. Maintaining production environments is also a headache without Docker. For small-scale application services, simply including a `Dockerfile` and `docker-compose.yaml` in a repository enables rapid development by pipelining image building, service lifecycle, storage, and network management.
 
-However, I am concerned about the security of Docker. The most critical issue is that the Docker daemon is rootful, meaning that any user with access to Docker gets full system access. Also, some pre-built images even run the application as root by default, which maps to the `root` user on the host system. Given that our lovely system libraries and popular services may contain more security vulnerabilities waiting to be discovered, I feel it is critical to run Internet-facing services in an unprivileged sandbox environment to minimize the attack surface.
+However, I am concerned about the security of default rootful Docker. The most critical issue is that any user with access to its daemon gets full system access. Docker also supports [rootless mode](https://docs.docker.com/engine/security/rootless/). Some pre-built images even run the application as root by default, which maps to the `root` user on the host system when user namespace remapping is disabled. Given that our lovely system libraries and popular services may contain more security vulnerabilities waiting to be discovered, I feel it is critical to run Internet-facing services in an unprivileged sandbox environment to minimize the attack surface.
 
-After researching different alternatives using LLM, I found [Podman Quadlets](https://www.redhat.com/en/blog/quadlet-podman) to be a good approach for production deployments, especially since its configuration syntax is compatible with the Kubernetes [kubelet](https://kubernetes.io/docs/concepts/overview/components/#kubelet).  
+After researching different alternatives using LLM, I found [Podman Quadlets](https://www.redhat.com/en/blog/quadlet-podman) to be a good approach for production deployments, especially since its `.kube` units run supported Kubernetes YAML through [podman kube play](https://docs.podman.io/en/latest/markdown/podman-kube-play.1.html).
 
 This post summarizes the key steps to migrate `docker-compose.yml` file into Podman Quadlet Kube for my own reference.
 
@@ -18,18 +18,18 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
 
 ### Network Namespace
 *   **Docker Compose:** Each container gets a unique IP on a bridge network and resolves other containers via internal DNS.
-*   **Podman `.kube`:** All containers defined in a single `.kube` file are scheduled into a **Pod**. They share the exact same network namespace.
+*   **Podman `.kube`:** All containers within a **Pod** share the exact same network namespace. A single `.kube` file can deploy multiple Pods.
     *   **Zero Network Isolation:** Every container in the Pod binds to the same loopback interface `lo`, therefore, no network policies can block traffic inside a shared network namespace.
     *   **Port Conflicts:** You cannot have two containers in the same Pod listening on the same internal port.
 
 ### User Namespace
-*   **Docker Compose:** Rootful Docker uses 1:1 pass-through for user namespace. The container process runs as the same UID on both the host and container.
-    *   **Root Risk:** If a container in Docker Compose does not specify a user, it runs as UID 0 (root) and be able to access file in mounted filesystem as root.
-    *   **Default Behavior:** User namespace is strictly isolated per container. You must explicitly opt-in to sharing IPC namespace using `ipc: shareable` or `ipc: host`.
-*   **Podman `.kube`:** A Rootless Podman instance shares a single `subuid` allocation by default. While Podman does have a `--userns=auto` feature that can generate unique, separate UID mappings per container to isolate them from each other, but this feature cannot be used when containers share a Pod.
-    *   **Multiple Users In A Container:** The kernel will map container process UID/GID to the specific UID/GID in the host set by [setuidmap](https://man7.org/linux/man-pages/man1/newuidmap.1.html)/[setgidmap](https://man7.org/linux/man-pages/man1/newgidmap.1.html) on container init.
-    *   **User Namespace:** The kernel will isolate the network namespace (`lo`) and IPC namespace ([shm](https://man7.org/linux/man-pages/man7/shm_overview.7.html) and [sysvipc](https://man7.org/linux/man-pages/man7/sysvipc.7.html)) between user namespaces.
-    *   **Default Behavior:** Same behavior as Docker, except for implicitly sharing the same user namespace among all containers *within the same Pod*.
+*   **Docker Compose:** Rootful Docker uses 1:1 UID mapping by default, unless user namespace remapping is configured. The container process runs as the same UID on both the host and container.
+    *   **Root Risk:** If neither Compose nor the image's `USER` specifies a user, the container runs as UID 0 (root) and can access mounted files with that identity, subject to mount permissions and security controls.
+    *   **Default Behavior:** The user namespace is shared with the host. IPC is configured separately: `ipc: shareable` gives a container its own IPC namespace that another container can join using `ipc: service:<name>`, while `ipc: host` uses the host's IPC namespace. See the [Compose reference](https://docs.docker.com/reference/compose-file/services/#ipc).
+*   **Podman `.kube`:** A Rootless Podman instance shares a single `subuid` allocation by default. Podman's [--userns=auto](https://docs.podman.io/en/latest/markdown/podman-pod-create.1.html#userns-mode) feature can allocate separate UID mappings per Pod, but containers within the same Pod use the Pod's mapping.
+    *   **Multiple Users In A Container:** The kernel maps container process UID/GID to host UID/GID using mappings configured with [newuidmap](https://man7.org/linux/man-pages/man1/newuidmap.1.html)/[newgidmap](https://man7.org/linux/man-pages/man1/newgidmap.1.html) on container init.
+    *   **User Namespace:** User, network (`lo`), and IPC namespaces ([shm](https://man7.org/linux/man-pages/man7/shm_overview.7.html) and [sysvipc](https://man7.org/linux/man-pages/man7/sysvipc.7.html)) are configured separately. Sharing a user namespace does not itself share the network or IPC namespace.
+    *   **Default Behavior:** Rootless container UID 0 maps to the calling host user. Containers *within the same Pod* share the Pod's user, network, and IPC namespaces by default.
 
 ### Dependency Management
 *   **Docker Compose:** Uses `depends_on` to control startup order.
@@ -37,11 +37,11 @@ This post summarizes the key steps to migrate `docker-compose.yml` file into Pod
 
 ### Variable Interpolation
 *   **Compose:** Natively expands environment variables in the YAML (e.g., `user: "${UID}"` or `volumes: ["./data:/data"]`).
-*   **Podman `.kube`:** Kubernetes YAML is strictly declarative. It does **not** evaluate shell variables or relative paths. You must hardcode explicit UIDs, GIDs, and absolute host paths.
+*   **Podman `.kube`:** Kubernetes YAML does **not** provide Compose-style shell variable interpolation. Specify explicit UIDs and GIDs, and use absolute host paths to avoid depending on the service's working directory.
 
 ## Host access from containers
 
-When running on native Linux system, both Docker and Podman *do not* block host access by default. Containers can access any host service bound to `0.0.0.0/0`. 
+When running on native Linux system, both Docker and Podman *do not* provide a blanket block on host access by default. Containers may access host services bound to `0.0.0.0`, subject to routing and firewall rules.
 
 > You may find the effect of "host isolation" when using Docker Desktop on Mac/Windows, where the lightweight Linux VM physically separates the container network from your host.
 
@@ -49,23 +49,24 @@ For rootful Docker/Podman, the bridge interfaces (e.g. `docker0` or `podman`) fo
 
 ### Workaround: Add firewall rules (rootful)
 
-*This works when using rootful Docker/Podman container.*
+*This example targets the specified IPv4 subnet for rootful containers. It does not cover every host address or all forwarded LAN traffic. Verify the rules against your container network and firewall setup.*
 
 ```bash
-sudo firewall-cmd --permanent --new-zone=podman-isolated
+sudo firewall-cmd --permanent --new-zone=podman-isolated;
 # Podman bridge subnet 
-sudo firewall-cmd --permanent --zone=podman-isolated --add-source=172.20.0.0/24
+sudo firewall-cmd --permanent --zone=podman-isolated --add-source=172.20.0.0/24;
 
 # Drop traffic targeting the host's physical LAN subnet
-sudo firewall-cmd --permanent --zone=podman-isolated --add-rich-rule='rule family="ipv4" destination address="192.168.1.0/24" drop'
+sudo firewall-cmd --permanent --zone=podman-isolated --add-rich-rule='rule family="ipv4" destination address="192.168.1.0/24" drop';
+sudo firewall-cmd --reload;
 ```
 
-However, host access from rootless containers cannot be filtered since the virtual bridge is created inside the unprivileged user namespace. Podman uses `pasta` which copies the configuration from the host bridge interface, or `slirp4netns` which performs NAT, to route traffic to/from the host.  
-The kernel will view the source IP as if come from the host, and therefore the traffic cannot be filtered by IP.
+However, filtering rootless containers by their original source IP is more difficult. Podman uses `pasta` which copies addresses and routes from the selected host interface, or `slirp4netns` which performs NAT, to route traffic to/from the host.
+With [pasta](https://passt.top/passt/about/), outgoing traffic uses host sockets, so host firewall rules cannot rely on the original container source IP to distinguish it from other host traffic.
 
-### Workaround: Disable host access from containers (rootless)
+### Workaround: Disable the host-address mapping (rootless)
 
-*This works when using `pasta` for userspace networking in rootless Podman container.*
+*This works when using `pasta` for userspace networking in rootless Podman container. It disables the [guest-to-host address mapping](https://passt.top/builds/latest/web/passt.1.html#map-guest-addr) feature only, which Podman normally uses for `host.containers.internal`. This cannot block host access from container.*
 
 ```bash
 podman run --net=pasta:--map-guest-addr=none ...
@@ -75,7 +76,7 @@ podman run --net=pasta:--map-guest-addr=none ...
 
 ```ini
 [Kube]
-# Block host access but allow the internet via pasta
+# Disable the guest-to-host address mapping via pasta
 Network=pasta:--map-guest-addr=none
 ```
 
@@ -96,16 +97,20 @@ services:
 
 **Kubernetes YAML (`.yaml`):**
 ```yaml
-containers:
-  - name: app
-    securityContext:
-      runAsUser: 1000 
-      runAsGroup: 1000
-      supplementalGroups: [2000, 3000] 
+spec:
+  securityContext:
+    supplementalGroups: [2000, 3000]
+  containers:
+    - name: app
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
 ```
 
 ### Build image from Dockerfile
-Build image from Dockerfile on container start/restart. Unlike Docker Compose, Podman Quadlets does not support image building in a single Kubernetes YAML. Quadlets uses a `.build` unit to compile the image, and a `.kube` unit to execute it.
+Build image from Dockerfile using a `.build` unit, and run it using a `.kube` unit. While [podman kube play](https://docs.podman.io/en/latest/markdown/podman-kube-play.1.html#description) also supports automatic builds with a specific directory layout, a separate `.build` unit gives explicit control over building the image. Restart the build service when build inputs change.  
+
+However, restarting the app service alone does not rebuild it.
 
 **Docker Compose:**
 ```yaml
@@ -128,12 +133,12 @@ File=/path/to/build/file
 
 # Plain text variables directly to the build file
 BuildArg=BUILD_VERSION=v1.2.4
-Secret=secret-token,type=mount,src=/path/to/secret/file
+Secret=id=secret-token,src=/path/to/secret/file
 ```
 
 **Build file (`ContainerFile`)**
 
-When used with Quadlets, you must use `ARG` to capture `BuildArg=` into the build context, and then assign it to `ENV`.
+When used with Quadlets, use `ARG` to capture `BuildArg=` during the build. Assign it to `ENV` only if it is also needed at runtime. The [build secret](https://docs.podman.io/en/latest/markdown/podman-build.unit.5.html#secret-id-id-src-envorfile-env-env-type-file-env) is supplied separately and mounted by the `RUN` instruction.
 
 Note that `ENV` will make the variable available in the final image via `podman inspect`.
 
@@ -186,7 +191,7 @@ volumes:
 ```
 
 **Kubernetes YAML (`.yaml`):**
-*Note: Paths must be absolute. Relative paths like `./data` will fail.*
+*Note: Use absolute host paths to avoid depending on the service's working directory.*
 ```yaml
 containers:
   - name: app
@@ -227,8 +232,10 @@ volumes:
       claimName: db-data
 ```
 
-### Environment Variable Injection (.env files)
-Injecting variables directly or via external files. Quadlet's `ConfigMap=` reads Kubernetes ConfigMap YAML; it does not convert dotenv files. Put runtime values directly in `config.yaml` and inject them as ordinary environment variables.
+### Environment Variable Injection
+Injecting variables directly or via external files. 
+
+Quadlet's `ConfigMap=` reads Kubernetes ConfigMap YAML only, it cannot support dotenv (`.env`) files. Put runtime values directly in `config.yaml` and inject them as ordinary environment variables.
 
 **Docker Compose:**
 ```yaml
@@ -292,11 +299,11 @@ NetworkName=proxy-net
 ```
 
 **Quadlet Wrapper (`.kube`):**
-Networking configuration is handled by the systemd wrapper.
+Networking configuration is handled by the systemd wrapper. [Network=proxy-net.network](https://docs.podman.io/en/latest/markdown/podman-kube.unit.5.html#network-mode) automatically adds the dependency on `proxy-net-network.service`.
 
 ```ini
 [Unit]
-After=network-online.target proxy-net.network
+After=network-online.target
 
 [Kube]
 Yaml=/opt/app/app.yaml
@@ -335,27 +342,15 @@ Networking configuration is handled by the systemd wrapper.
 
 ```ini
 [Unit]
-After=network-online.target proxy-net.network
+After=network-online.target
 
 [Kube]
 Yaml=/opt/app/app.yaml
 Network=proxy-net.network
+PodmanArgs=--ip=172.20.0.254
 ```
 
-**Kubernetes YAML (`.yaml`):**
-List raw IP address within the defined subnet. Since the network namespace is shared within a pod, the IP is assigned to the pod itself,  and and all containers inside it share that IP.
-
-```yaml
-metadata:
-  annotations:
-    containers.podman.io/networks: |
-      [
-        {
-          "name": "proxy-net",
-          "static-ips": ["172.20.0.254"]
-        }
-      ]
-```
+The [--ip](https://docs.podman.io/en/latest/markdown/podman-kube-play.1.html#ip-ip-address) option assigns an address within the defined subnet to the Pod itself, and all containers inside it share that IP.
 
 ### Health Checks
 Monitoring container state.
@@ -369,7 +364,7 @@ healthcheck:
 ```
 
 **Kubernetes YAML (`.yaml`):**
-Kubernetes splits health checks into Liveness (is it running?) and Readiness (can it accept traffic?).
+Kubernetes splits health checks into Liveness (is it running?) and Readiness (can it accept traffic?). Podman kube play supports `livenessProbe`, but does not support `readinessProbe` or `startupProbe`.
 ```yaml
 containers:
   - name: app
@@ -463,6 +458,8 @@ data:
   PGHOST: "app-db"
   PGDATABASE: "app"
   PGUSER: "app"
+  POSTGRES_USER: "app"
+  POSTGRES_DB: "app"
   DB_PASSWORD: "replace-with-database-password"
   API_KEY: "replace-with-runtime-api-key"
 ```
@@ -490,6 +487,12 @@ spec:
           done;
           echo "Database did not become ready" >&2;
           exit 1;
+      env:
+        - name: PGPASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_PASSWORD
       envFrom:
         - configMapRef:
             name: app-config
@@ -539,6 +542,13 @@ spec:
   containers:
     - name: database
       image: docker.io/library/postgres:15
+      # Map the shared password to the image's initialization variable.
+      env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_PASSWORD
       envFrom:
         - configMapRef:
             name: app-config
