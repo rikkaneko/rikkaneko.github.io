@@ -1,7 +1,7 @@
 ---
 date: '2026-10-29T15:00:14+08:00'
 draft: false
-title: 'Migrate Docker Compose to Podman Quadlets'
+title: 'Migrate Docker Compose to Podman Quadlets (Kube)'
 ---
 
 ## Preface
@@ -136,7 +136,7 @@ BuildArg=BUILD_VERSION=v1.2.4
 Secret=id=secret-token,src=/path/to/secret/file
 ```
 
-`BuildArg=` in `[Build]` is supported from [Podman v5.7](https://docs.podman.io/en/v5.7.0/markdown/podman-systemd.unit.5.html#buildarg). Before v5.7, use `PodmanArgs=--build-arg=BUILD_VERSION=v1.2.4` in `[Build]` instead.
+> `BuildArg=` in `[Build]` is supported from [Podman v5.7](https://docs.podman.io/en/v5.7.0/markdown/podman-systemd.unit.5.html#buildarg). Before v5.7, use `PodmanArgs=--build-arg=BUILD_VERSION=v1.2.4` in `[Build]` instead.
 
 **Build file (`ContainerFile`)**
 
@@ -282,9 +282,14 @@ containers:
 ```
 
 **Image build variables (`.build`):**
-Use systemd's [EnvironmentFile=](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=) in `[Service]` section to load environment variables into the Podman process for building images.
+For build unit, there are two approach to set environment variable ⎯ `Environment` and `BuildArg` in [[Build]](https://docs.podman.io/en/v5.7.0/markdown/podman-systemd.unit.5.html#build-units-build) section.  
 
-> This option does not apply to pod ran by Podman Quadlet kube as it ignored by K8s spec.
+- `Environment` add a value to the built image which will available in container runtime environment.  
+- `BuildArg` forward a build argument to the matching `ARG` statement in `ContainerFile`.
+
+However, build unit does not support `EnvironmentFile=`. Instead, use systemd's [EnvironmentFile](https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html#EnvironmentFile=) option in the `[Service]` section to load environment variables into the Podman process. Then, explicitly forward each variable using `Environment=` or `BuildArg=` options.
+
+> Note that `Service.EnvironmentFile` alone does not make it available to build environment.
 
 **Environment file (`/opt/app/.env.build`):**
 ```text
@@ -297,6 +302,9 @@ BUILD_VERSION=v1.2.4
 ImageTag=localhost/app:latest
 File=/opt/app/ContainerFile.app
 SetWorkingDirectory=/opt/app
+# Store the variable into built image
+Environment=NODE_ENV=production
+# Forward the variable to `ARG BUILD_VERSION` statement
 BuildArg=BUILD_VERSION=${BUILD_VERSION}
 
 [Service]
