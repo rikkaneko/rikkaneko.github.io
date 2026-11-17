@@ -10,6 +10,7 @@ title: 'Traveling'
 ### Visited Countries
 
 - China
+  - Beijing
   - Changsha
   - Chongqing
   - Guangdong# (Including Guangzhou and Shenzhen)
