@@ -32,6 +32,10 @@ languages:
         name: Friends
         pageRef: /post/friends
         weight: 12
+      - identifier: linux-repo
+        name: Repo
+        pageRef: /post/repo
+        weight: 13
       - identifier: project
         name: Project
         pageRef: /post/my-project
@@ -62,6 +66,10 @@ languages:
           name: "友鏈"
           pageRef: /post/friends
           weight: 12
+        - identifier: linux-repo
+          name: "倉庫"
+          pageRef: /post/repo
+          weight: 13
         - identifier: project
           name: "我的項目"
           pageRef: /post/my-project
