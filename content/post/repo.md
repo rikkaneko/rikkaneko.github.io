@@ -14,28 +14,32 @@ Make sure to read [about secure apt](https://wiki.debian.org/SecureApt) to under
 | Repositories | |
 |-|-|
 | Server | https://files.nekoid.cc/pub/debian |
-| APT Archive Keyring | **Same as my GPG key** or <br> via https://files.nekoid.cc/pub/debian/archive-keyring.gpg |
+| APT Archive Keyring | Same as my GPG key or <br> https://files.nekoid.cc/pub/debian/archive-keyring.gpg |
 | Fingerprint | `77857DC6BBB6429C8BE209F5D68E0BFE4115B78C` | 
 | Architecture | `amd64`, `arm64` |
 
-### Adding my repositories
+### Adding my repository
 
-1. Retrieve the archive keyring file from the server. Then, verify the GPG key if the fingerprint is exactly `77857DC6BBB6429C8BE209F5D68E0BFE4115B78C`.  
+1. Retrieve the archive keyring file from the server.
 
-```
+> Validate if the GPG fingerprint is `77857DC6BBB6429C8BE209F5D68E0BFE4115B78C`.  
+
+```bash
 curl -o /tmp/archive-keyring.gpg https://files.nekoid.cc/pub/debian/archive-keyring.gpg
 gpg --show-keys --with-fingerprint /tmp/archive-keyring.gpg;
 ```
 
-2. Install the archive keyring file to `/etc/apt/keyrings`. You may pick any filename but it needs to match with `Signed-By` field in the source list.
+2. Install the archive keyring file to `/etc/apt/keyrings`.  
+You may pick any filename but it needs to match with `Signed-By` field in the source file.
 
-```
+```bash
 sudo cp /tmp/archive-keyring.gpg /etc/apt/keyrings/archive-keyring-nekoid.gpg
+sudo chmod 644 /etc/apt/keyrings/archive-keyring-nekoid.gpg
 ```
 
-3. Create a source list for this repository at `/etc/apt/sources.list.d/nekoid.sources`.
+3. Create the source file for this repository at `/etc/apt/sources.list.d/nekoid.sources` with file mode `0644`.
 
-```
+```yaml
 Types: deb
 URIs: https://files.nekoid.cc/pub/debian/
 Suites: trixie
@@ -44,13 +48,11 @@ Architectures: amd64 arm64
 Signed-By: /etc/apt/keyrings/archive-keyring-nekoid.gpg
 ```
 
-4. Refresh the package list then you are done.
+### Package list
 
-### Provided packages
-
-| Name | Version | Project | Modification | 
-|-|-|-|-|
-|`podlet`|`0.3.2-1`| [podlet](https://github.com/containers/podlet) | None |
+| Name | Version | amd64 | arm64 | Description |
+|-|-|-|-|-|
+|`podlet`|`0.3.2-1`| Yes | Yes | Built from [podlet](https://github.com/containers/podlet) |
 
 
 ## Archlinux/Pacman
