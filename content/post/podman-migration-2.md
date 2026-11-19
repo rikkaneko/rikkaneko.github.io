@@ -18,6 +18,8 @@ Still, the findings in [my previous post](../podman-migration) helped me underst
 
 [Podlet](https://github.com/containers/podlet) is a great tool to generate Podman Quadlets files (`*.container`, `*.network`, `*.volume`, ...) from an existing `docker-compose.yaml` or a podman command line. Note that `podman generate systemd` is already deprecated and is being replaced by Quadlets to manage container service startups with systemd.  
 
+> Build from [tarball](https://github.com/containers/podlet/releases) or install `podlet` from [my package repository](../repo).
+
 These commands generate a single Quadlets file as `<app>.quadlets` from the existing compose file in current working directory. Afterward, split and install the single multi-unit Quadlets file into individual systemd unit files under `~/.config/containers/systemd/<app>`.
 
 ```bash
